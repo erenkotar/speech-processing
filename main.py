@@ -228,8 +228,8 @@ def run_lpc_analysis(wav_path: str, plots_dir: str = "plots") -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LPC Analysis – CMPE532 Hmw#1")
     parser.add_argument(
-        "--wav", type=str, default="sample_speech.wav",
-        help="Path to input WAV file (default: sample_speech.wav)"
+        "--wav", type=str, default="my_recording.wav",
+        help="Path to input WAV file (default: my_recording.wav)"
     )
     parser.add_argument(
         "--plots_dir", type=str, default="plots",

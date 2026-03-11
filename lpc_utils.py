@@ -63,7 +63,7 @@ def frame_signal(
 
     # Zero-pad so the last frame is full
     num_frames = 1 + (len(signal) - frame_len) // hop_len
-    padded_len = frame_len + (num_frames - 1) * hop_len
+    padded_len = max(len(signal), frame_len + (num_frames - 1) * hop_len)
     padded     = np.zeros(padded_len)
     padded[:len(signal)] = signal
 
