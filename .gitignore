@@ -28,3 +28,7 @@ plots/
 # OS
 .DS_Store
 Thumbs.db
+HW1/ErenKotar2024700078.zip
+texput.log
+HW2/report/*
+!HW2/report/main.pdf
