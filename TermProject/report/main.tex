@@ -254,14 +254,15 @@ resulting frame is
     x_t(n) = s(n + tH)\,w(n), \quad n = 0, \ldots, N-1.
 \end{equation}
 
-\textbf{Short-time spectrum.} The discrete Fourier transform of each frame
-yields its magnitude spectrum:
+\textbf{Short-time spectrum.} Each frame is zero-padded to
+$N_\text{FFT} = 512$ samples and a discrete Fourier transform is taken,
+yielding its magnitude spectrum:
 \begin{equation}
-    X_t(k) = \sum_{n=0}^{N-1} x_t(n)\, e^{-j 2\pi k n / N}, \quad
+    X_t(k) = \sum_{n=0}^{N-1} x_t(n)\, e^{-j 2\pi k n / N_\text{FFT}}, \quad
     |X_t(k)| = \text{frame magnitude}.
 \end{equation}
-In practice the FFT length is zero-padded to $N_\text{FFT} = 512$ for
-efficient computation.
+The zero-padding allows an efficient power-of-two FFT and provides
+finer-grained sampling of the underlying continuous spectrum.
 
 \textbf{Mel filterbank.} The magnitude spectrum is mapped to a perceptual
 frequency scale by integrating $|X_t(k)|^2$ over a bank of $M$ overlapping
@@ -344,7 +345,7 @@ training vectors of dimensionality $52$, each prediction requires roughly
 $2400 \times 52 \approx 1.3 \times 10^5$ floating-point operations --- easily
 fast enough for an interactive CLI tool on commodity hardware.
 
-\subsection{Cross-Validated Generalization}
+\subsection{Train/Test Splits and Generalization}
 
 A robust evaluation requires that the test data not have leaked into
 training. Two natural splits exist for FSDD:
@@ -400,28 +401,32 @@ Table~\ref{tab:confusion}.
 \end{tabular}
 \end{table}
 
-Errors are concentrated in three places: digit~6 occasionally confused with
-8 (similar voiced trailing consonants), digit~1 confused with 9 (both
-short, sonorant), and a small drift of digit~3 to neighbours such as 2 or 7.
-No digit class falls below $92\%$ per-class accuracy.
+The largest off-diagonal errors are true~1 predicted as~9 and true~6
+predicted as~8. These may reflect limitations of mean--variance aggregation
+rather than a clear phonetic equivalence between the digit pairs. The lowest
+per-class recall is digit~6 at $91.9\%$, while all other classes exceed
+$93\%$.
 
 \subsection{Effect of Design Choices}
 
-Three intermediate experiments illuminate which components actually carry
-recognition performance:
+To keep the ablation rows comparable, every configuration in
+Table~\ref{tab:ablation} is evaluated on the same speaker-disjoint split
+(speaker ``jackson'' held out, 500 test utterances). The $97.7\%$
+random-split number reported in the previous subsection is a separate
+benchmark and is not directly comparable to these rows.
 
 \begin{table}[H]
 \centering
-\caption{Ablation: test accuracy as a function of design choices, evaluated on the speaker-disjoint split (speaker "jackson" held out). Numbers were measured during development.}
+\caption{Ablation: test accuracy as a function of design choices, all evaluated on the same speaker-disjoint split (speaker ``jackson'' held out, 500 test utterances). Each row applies the listed change cumulatively to the row above unless noted.}
 \label{tab:ablation}
 \begin{tabular}{lc}
 \toprule
-\textbf{Configuration} & \textbf{Accuracy} \\
+\textbf{Configuration (speaker-disjoint test)} & \textbf{Accuracy} \\
 \midrule
 MFCC mean+std only, no standardization & $60.6\%$ \\
 + Feature standardization & $60.2\%$ \\
 + Cepstral mean subtraction (per-utterance) & $35.8\%$ \\
-+ Delta features (and remove CMS, with standardization, random split) & $\mathbf{97.7\%}$ \\
+Standardization + delta features (CMS removed) & $\mathbf{65.6\%}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -430,12 +435,14 @@ Two observations stand out. First, cepstral mean subtraction, although
 standard in speaker-independent ASR \cite{furui1986speaker}, is actively
 harmful in combination with mean-pooled aggregation: subtracting the
 per-utterance mean before computing $\mu(\mathbf{C})$ forces that statistic
-to be identically zero, destroying half the feature vector. Second, the
-addition of delta features is the single most impactful change in the entire
-pipeline, raising accuracy by tens of percentage points on the harder
-speaker-disjoint split. This is consistent with the central message of
-Furui's work \cite{furui1986speaker}: it is the dynamics of the cepstrum,
-not its static value, that carry most of the discriminative information.
+to be identically zero, destroying half the feature vector. Second, adding
+delta features yields a modest but consistent improvement of roughly five
+percentage points over the static-MFCC baseline on the speaker-disjoint
+split, in line with Furui's broader observation \cite{furui1986speaker}
+that cepstral \emph{dynamics} carry significant discriminative information.
+The much larger random-split accuracy of $97.7\%$ (Section 4.2) should be
+attributed primarily to the fact that all speakers are represented in the
+training set, not to the delta features alone.
 
 \subsection{Diagnostic Visualization}
 
@@ -448,7 +455,7 @@ training samples, colour-coded by label.
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{images/diagnostic_plot.png}
-\caption{Three-panel diagnostic plot for a successful prediction (utterance: spoken digit "5"). Top: input waveform. Middle: MFCC matrix; the strong yellow band around coefficients 2--3 reflects the formant-rich vowel. Bottom: the five nearest training vectors in standardised feature space --- all labelled 5, with near-identical distances around $4.8$.}
+\caption{Three-panel diagnostic plot for a successful prediction (utterance: spoken digit ``5''). Top: input waveform. Middle: MFCC matrix; the strong low-order MFCC components reflect the broad spectral-envelope structure of the vowel region. Bottom: the five nearest training vectors in standardised feature space --- all labelled 5, with near-identical distances around $4.8$.}
 \label{fig:diag}
 \end{figure}
 
@@ -461,9 +468,10 @@ methods on which it is built:
           recognized. Adding new classes requires retraining; there is no
           language model and no decoding of word sequences.
     \item \textbf{Speaker generalization.} As Table~\ref{tab:ablation}
-          implies, speaker-disjoint accuracy is markedly lower than the
-          $97.7\%$ random-split number. With only six speakers in FSDD, any
-          held-out speaker dominates the residual error.
+          shows, the best speaker-disjoint accuracy ($65.6\%$) is markedly
+          lower than the $97.7\%$ random-split number. With only six
+          speakers in FSDD, any held-out speaker dominates the residual
+          error.
     \item \textbf{Temporal information loss.} Per-utterance aggregation
           discards the order of frames. Words that differ only in temporal
           structure (not relevant for digits, but easily constructed in
@@ -496,13 +504,16 @@ accuracy on the ten-digit Free Spoken Digit Dataset, while remaining small
 enough that every line of code can be reasoned about.
 
 Two themes of broader interest emerge from the project. First, the
-relative importance of feature engineering choices: the single change that
-brought the system from chance-level on hard splits to near-perfect accuracy
-was the addition of delta features, echoing classical results in
-speaker-independent ASR \cite{furui1986speaker}. Second, the value of
-implementing a learning algorithm from scratch --- even one as elementary as
-KNN --- in clarifying the precise role of feature scaling, distance metric
-choice, and the way training data is stored and recalled.
+relative importance of feature engineering choices: delta features produced
+the best measured configuration, reaching $97.7\%$ accuracy on the random
+mixed-speaker split. However, the current ablation table does not establish
+near-perfect speaker-disjoint performance --- on the harder speaker-disjoint
+split, delta features deliver only a modest improvement, echoing rather than
+overstating Furui's classical findings on cepstral dynamics
+\cite{furui1986speaker}. Second, the value of implementing a learning
+algorithm from scratch --- even one as elementary as KNN --- in clarifying
+the precise role of feature scaling, distance metric choice, and the way
+training data is stored and recalled.
 
 The limitations enumerated above outline the natural progression of
 classical ASR: from KNN to Dynamic Time Warping for temporal alignment, from

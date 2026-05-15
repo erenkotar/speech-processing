@@ -38,3 +38,4 @@ python main.py sample_speech.wav
 - `dataset.py` — build feature matrix from FSDD
 - `download_dataset.py` — fetch FSDD
 - `visualization.py` — diagnostic plot
+- `report.pdf` - term project's report
