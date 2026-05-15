@@ -14,10 +14,27 @@ env/
 # Output
 plots/
 *.png
+*.npz
 
 # Audio files (keep sample)
 *.wav
 !sample_speech.wav
+
+# TermProject dataset (downloaded on demand)
+TermProject/data/
+
+# TermProject report: keep source + PDF + images, drop LaTeX build artifacts
+TermProject/report/*.aux
+TermProject/report/*.bbl
+TermProject/report/*.blg
+TermProject/report/*.fdb_latexmk
+TermProject/report/*.fls
+TermProject/report/*.log
+TermProject/report/*.out
+TermProject/report/*.synctex.gz
+TermProject/report/*.vrb
+!TermProject/report/images/
+!TermProject/report/images/*.png
 
 # IDE
 .vscode/
